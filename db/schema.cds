@@ -1,6 +1,8 @@
 namespace com.satinfotech.cloudapps;
 
 using { cuid, managed } from '@sap/cds/common';
+
+// Define the Accounting entity
 entity Accounting : cuid, managed {
     key ID : UUID;
 
@@ -11,10 +13,10 @@ entity Accounting : cuid, managed {
     FiscalYear : String(4);
 
     @title: 'FiscalPeriod'
-    FiscalPeriod : String(3);
+    FiscalPeriod : String(4);
 
     @title: 'LastChangeDate'
-    LastChangeDate : String(3);
+    LastChangeDate : DateTime;
 
     @title: 'AccountingDocument'
     AccountingDocument : String(15);
@@ -22,22 +24,26 @@ entity Accounting : cuid, managed {
     @title: 'AccountingDocumentType'
     AccountingDocumentType : String(15);
 
-
+    // Define the composition relationship with Items
     Items : Composition of many Items on Items.AccountingDocument = $self.AccountingDocument;
 }
-
 
 // Define the Items entity
 entity Items : cuid, managed {
     key ID : UUID;
-
-
+    @title : 'CompanyCode'
+    CompanyCode: String(10);
+    @title: 'FiscalYear'
+    FiscalYear: String(4);
     @title: 'AccountingDocument'
-    AccountingDocument : String(50);
+    AccountingDocument: String(10);
+    @title: 'Accounting Document Item'
+    AccountingDocumentItem: String(4);
+    @title: 'GL Account'
+    GLAccount: String(10);
+    @title: 'Tax Code'
+    TaxCode: String(5);
+    @title: 'GST Amount in INR'
+    AmountInTransactionCurrency : Decimal(15,2);
 
-    @title: 'GLAccount'
-    GLAccount : String(50);
-
-    @title: 'TaxCode'
-    TaxCode : String(50);
 }

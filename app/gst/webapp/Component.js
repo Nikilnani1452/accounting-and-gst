@@ -3,7 +3,7 @@ sap.ui.define(
     function (Component) {
         "use strict";
 
-        return Component.extend("com.satinfotech.cloudapps.addingaccountingdetails.Component", {
+        return Component.extend("com.satinfotech.cloudapps.gst.Component", {
             metadata: {
                 manifest: "json"
             }

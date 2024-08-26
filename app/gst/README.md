@@ -1,14 +1,14 @@
 ## Application Details
 |               |
 | ------------- |
-|**Generation Date and Time**<br>Tue Aug 20 2024 12:05:03 GMT+0530 (India Standard Time)|
+|**Generation Date and Time**<br>Mon Aug 26 2024 13:47:19 GMT+0530 (India Standard Time)|
 |**App Generator**<br>@sap/generator-fiori-elements|
 |**App Generator Version**<br>1.14.2|
 |**Generation Platform**<br>Visual Studio Code|
 |**Template Used**<br>List Report Page V4|
 |**Service Type**<br>Local Cap|
 |**Service URL**<br>http://localhost:4004/odata/v4/accountsrv/|
-|**Module Name**<br>addingaccountingdetails|
+|**Module Name**<br>gst|
 |**Application Title**<br>App Title|
 |**Namespace**<br>com.satinfotech.cloudapps|
 |**UI5 Theme**<br>sap_horizon|
@@ -17,9 +17,9 @@
 |**Enable TypeScript**<br>False|
 |**Add Eslint configuration**<br>False|
 |**Main Entity**<br>Accounting|
-|**Navigation Entity**<br>None|
+|**Navigation Entity**<br>Items|
 
-## addingaccountingdetails
+## gst
 
 An SAP Fiori application.
 
@@ -27,7 +27,7 @@ An SAP Fiori application.
 
 -   This app has been generated using the SAP Fiori tools - App Generator, as part of the SAP Fiori tools suite.  In order to launch the generated app, simply start your CAP project and navigate to the following location in your browser:
 
-http://localhost:4004/addingaccountingdetails/webapp/index.html
+http://localhost:4004/gst/webapp/index.html
 
 #### Pre-requisites:
 

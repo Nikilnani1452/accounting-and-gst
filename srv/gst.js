@@ -1,61 +1,59 @@
 const cds = require('@sap/cds');
 const { v4: uuidv4 } = require('uuid');
 
-module.exports = cds.service.impl(async function() {
-    const Accountingapi = await cds.connect.to('API_OPLACCTGDOCITEMCUBE_SRV');
-    const { ext, Accounting, Items } = this.entities;
+module.exports = cds.service.impl(async function () {
+    const external = await cds.connect.to('API_OPLACCTGDOCITEMCUBE_SRV');
 
-    // Handle READ operation on the correct entity set
-    this.on('READ', 'ext', async req => {
+    let fetchStatus = {
+        messages: ["Initializing..."],  
+        completed: false
+    };
+
+    const docTypes = ['RV', 'DR', 'DG', 'RE', 'KR', 'KG']; // Define the document types to filter by
+
+    // Function to handle the data fetching and upserting logic
+    async function fetchAndUpsertData() {
         try {
-            const query = req.query
-                .where({ AccountingDocumentType: { in: ['RV', 'RE', 'DR', 'KR', 'DG', 'KG'] } })
-                .and({ CompanyCodeCurrency: 'INR' });
+            const { Accounting, Items, ext } = this.entities;
 
-            const result = await Accountingapi.run(query);
-            return result;
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            throw error;
-        }
-    });
+            // Fetch data for Accounting with filtering by AccountingDocumentType
+            const qry = SELECT.from(ext)
+                .columns([
+                    'CompanyCode',
+                    'FiscalYear',
+                    'AccountingDocument',
+                    'AccountingDocumentItem',
+                    'AccountingDocumentType',
+                    'GLAccount',
+                    'TaxCode'
+                ])
+                .where({ AccountingDocumentType: { in: docTypes } });
 
-    // Handle before READ operation on 'Accounting' entity
-    this.before('READ', 'Accounting', async (req) => {
-        try {
-            const query = SELECT.from(ext) // Use correct entity name
-                .columns('CompanyCode', 'FiscalYear', 'FiscalPeriod', 'AccountingDocument', 'AccountingDocumentType')
-                .where({ AccountingDocumentType: { in: ['RV', 'RE', 'DR', 'KR', 'DG', 'KG'] } })
-                .and({ CompanyCodeCurrency: 'INR' });
+            let res = await external.run(qry);
+            console.log('Fetched Data:', res);
 
-            const res = await Accountingapi.run(query);
-
-            // Group records by CompanyCode, FiscalYear, and AccountingDocument
             const groupMap = new Map();
             res.forEach(item => {
                 const groupKey = `${item.CompanyCode}-${item.FiscalYear}-${item.AccountingDocument}`;
                 if (!groupMap.has(groupKey)) {
                     item.ID = uuidv4();
-                    groupMap.set(groupKey, item);  // Store only one record per group
+                    groupMap.set(groupKey, item);
                 }
             });
 
-            const groupedData = [];
-            groupMap.forEach(group => groupedData.push(group));
-            console.log('Grouped records:', groupedData);
+            const groupedData = Array.from(groupMap.values());
 
-            // Perform a bulk UPSERT using a single operation
             const existingRecords = await cds.run(
                 SELECT.from(Accounting)
-                    .columns('CompanyCode', 'FiscalYear', 'AccountingDocument')
+                    .columns(['CompanyCode', 'FiscalYear', 'AccountingDocument'])
                     .where({
                         CompanyCode: { in: groupedData.map(r => r.CompanyCode) },
                         FiscalYear: { in: groupedData.map(r => r.FiscalYear) },
-                        AccountingDocument: { in: groupedData.map(r => r.AccountingDocument) }
+                        AccountingDocument: { in: groupedData.map(r => r.AccountingDocument) },
+                        AccountingDocumentType: { in: docTypes }
                     })
             );
 
-            // Filter out the already existing records
             const newRecords = groupedData.filter(groupedRecord => {
                 return !existingRecords.some(existingRecord =>
                     existingRecord.CompanyCode === groupedRecord.CompanyCode &&
@@ -64,67 +62,189 @@ module.exports = cds.service.impl(async function() {
                 );
             });
 
+            // Upsert Accounting data
             if (newRecords.length > 0) {
                 await cds.run(UPSERT.into(Accounting).entries(newRecords));
-                console.log('Inserted new records:', newRecords);
+                fetchStatus.messages.push("Data upserted successfully to Accounting");
             } else {
-                console.log('No new records to insert.');
+                fetchStatus.messages.push("No new data to upsert to Accounting.");
             }
-        } catch (error) {
-            console.error('Error processing Accounting records:', error);
-            throw error;
-        }
-    });
 
-    // Handle before READ operation on 'Items' entity
-    this.before('READ', 'Items', async (req) => {
-        try {
-            // Fetch records from the external API
-            const query = SELECT.from(ext) // Use correct entity name
-                .columns('AccountingDocument', 'TaxCode', 'GLAccount')
-                .where({ AccountingDocumentType: { in: ['RV', 'RE', 'DR', 'KR', 'DG', 'KG'] } })
-                .and({ CompanyCodeCurrency: 'INR' });
+            // Fetch data for Items with filtering by AccountingDocumentType
+            const qryItems = SELECT.from(ext)
+                .columns([
+                    'AccountingDocumentItem',
+                    'GLAccount',
+                    'TaxCode',
+                    'CompanyCode',
+                    'AccountingDocument',
+                    'FiscalYear',
+                    'AmountInTransactionCurrency'
+                ])
+                .where({ AccountingDocumentType: { in: docTypes } });
 
-            const sourceRecords = await Accountingapi.run(query);
-            console.log('Fetched records:', sourceRecords);
+            let sourceRecords = await external.run(qryItems);
+            console.log('Fetched Data for Items:', sourceRecords);
 
-            // Add UUID to each record and set ID for association
             const recordsWithUUID = sourceRecords.map(record => ({
                 ...record,
-                ID: uuidv4(), // Generate UUID for each record
-                id: record.AccountingDocument // Set association with Accounting (if the association field is 'id')
+                ID: record.ID || uuidv4()
             }));
 
-            // Fetch existing records from the Items table
-            const existingRecords = await cds.run(
+            const existingItemsRecords = await cds.run(
                 SELECT.from(Items)
-                    .columns('AccountingDocument')
+                    .columns(['AccountingDocumentItem', 'FiscalYear'])
                     .where({
-                        AccountingDocument: { in: recordsWithUUID.map(r => r.AccountingDocument) }
+                        AccountingDocumentItem: { in: recordsWithUUID.map(r => r.AccountingDocumentItem) },
+                        FiscalYear: { in: recordsWithUUID.map(r => r.FiscalYear) }
                     })
             );
 
-            // Convert existing records to a map for fast lookup
             const existingMap = new Map();
-            existingRecords.forEach(record => {
-                existingMap.set(record.AccountingDocument, record);
+            existingItemsRecords.forEach(record => {
+                const key = `${record.AccountingDocumentItem}-${record.FiscalYear}`;
+                existingMap.set(key, record);
             });
 
-            // Filter out records that already exist in the table
-            const newRecords = recordsWithUUID.filter(record => {
-                return !existingMap.has(record.AccountingDocument);
+            const newItemsRecords = recordsWithUUID.filter(record => {
+                const key = `${record.AccountingDocumentItem}-${record.FiscalYear}`;
+                return !existingMap.has(key);
             });
 
-            if (newRecords.length > 0) {
-                // Perform the UPSERT operation
-                await cds.run(UPSERT.into(Items).entries(newRecords));
-                console.log('Upserted records with UUIDs:', newRecords);
+            // Upsert Items data
+            if (newItemsRecords.length > 0) {
+                await cds.run(UPSERT.into(Items).entries(newItemsRecords));
+                fetchStatus.messages.push("Upserted records with UUIDs into Items");
             } else {
-                console.log('No new records to upsert.');
+                fetchStatus.messages.push("No new records to upsert into Items.");
             }
+
+            // Handle LGSTTaxItem processing with batch processing
+            let lastsyncdate1 = await cds.run(
+                SELECT.one.from(Accounting).columns('LastChangeDate').orderBy('LastChangeDate desc')
+            );
+
+            let counttaxdocs;
+            let taxlastsyncdatetime;
+
+            if (lastsyncdate1 && lastsyncdate1.LastChangeDate) {
+                taxlastsyncdatetime = lastsyncdate1.LastChangeDate.toISOString();
+                counttaxdocs = await external.send({
+                    method: 'GET',
+                    path: `A_OperationalAcctgDocItemCube/$count?$filter=LastChangeDate gt datetimeoffset'${taxlastsyncdatetime}'`
+                });
+            } else {
+                counttaxdocs = await external.send({
+                    method: 'GET',
+                    path: 'A_OperationalAcctgDocItemCube/$count'
+                });
+            }
+
+            if (counttaxdocs === 0) {
+                fetchStatus.messages.push('No new tax documents to process.');
+                fetchStatus.completed = true;
+                return { message: 'No new tax documents to process.', batchResults: [] };
+            }
+
+            const batchSize = 5000;
+            let count = 1;
+            const batchResults = [];
+            let newDataFetched = false;
+
+            for (let i = 0; i < counttaxdocs; i += batchSize) {
+                // Determine the upper limit of the current batch
+                let upperLimit = i + batchSize;
+                if (upperLimit > counttaxdocs) {
+                    upperLimit = counttaxdocs;  // Adjust if the upper limit exceeds the total count
+                }
+
+                const taxdocitemsQuery = {
+                    method: 'GET',
+                    path: `A_OperationalAcctgDocItemCube?$skip=${i}&$top=${batchSize}`
+                };
+
+                let results = await external.send(taxdocitemsQuery);
+
+                results = results.map(item => {
+                    if (item.LastChangeDate) {
+                        item.LastChangeDate = convertSAPDateToISO(item.LastChangeDate);
+                    }
+                    item.ID = item.ID || uuidv4();
+                    return item;
+                });
+
+                results = removeDuplicateEntries(results);
+
+                // Filter results to include only those with desired AccountingDocumentType
+                results = results.filter(item => docTypes.includes(item.AccountingDocumentType));
+
+                if (results.length > 0) {
+                    newDataFetched = true;
+                    fetchStatus.messages.push(`Processing Batch ${count} (${i + 1} to ${upperLimit}) of ${counttaxdocs} records`);
+                    await cds.run(UPSERT.into(Accounting).entries(results));
+                    batchResults.push(`Batch ${count} processed.`);
+                    count += 1;
+                } else {
+                    fetchStatus.messages.push(`Skipping batch ${count} due to missing or duplicate IDs`);
+                }
+
+                if (i === 0 && !newDataFetched) {
+                    fetchStatus.messages.push('No new records found in the first batch. Stopping further batch processing.');
+                    break;
+                }
+            }
+
+            if (newDataFetched) {
+                fetchStatus.messages.push('All records processed successfully.');
+            } else {
+                fetchStatus.messages.push('No new data to process after the initial batch. All records are fetched.');
+            }
+
+            fetchStatus.completed = true;
+            return { message: 'All records processed.', batchResults };
         } catch (error) {
-            console.error('Error processing Items records:', error);
+            console.error("Error during data fetch and upsert operation:", error);
+            fetchStatus.messages.push("Error during data fetch and upsert operation");
+            fetchStatus.completed = true;
             throw error;
         }
+    }
+
+    // Register the ListReporter handler
+    this.on('gst', async (req) => {
+        try {
+            Status = { messages: ["Initializing..."], completed: false }; // Reset status
+            const result = await fetchAndUpsertData.call(this);
+            console.log("fetch status", Status);
+            return true;
+        } catch (error) {
+            console.error("Error during fetch operation:", error);
+            req.error(500, 'Error during data fetch and upsert operation');
+        }
+    });
+
+    // Register the StatusReporter handler
+    this.on('Status', async (req) => {
+        console.log(fetchStatus);
+        return fetchStatus;
     });
 });
+
+function convertSAPDateToISO(dateString) {
+    const timestamp = parseInt(dateString.match(/\d+/)[0], 10);
+    return new Date(timestamp).toISOString();
+}
+
+function removeDuplicateEntries(results) {
+    const uniqueResults = [];
+    const seenIds = new Set();
+
+    for (const item of results) {
+        if (!seenIds.has(item.ID)) {
+            uniqueResults.push(item);
+            seenIds.add(item.ID);
+        }
+    }
+
+    return uniqueResults;
+}

@@ -27,7 +27,8 @@
   "scripts": {
     "start": "cds-serve",
     "watch-project1": "cds watch --open project1/webapp/index.html?sap-ui-xx-viewCache=false",
-    "watch-addingaccountingdetails": "cds watch --open addingaccountingdetails/webapp/index.html?sap-ui-xx-viewCache=false"
+    "watch-addingaccountingdetails": "cds watch --open addingaccountingdetails/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-gst": "cds watch --open gst/webapp/index.html?sap-ui-xx-viewCache=false"
   },
   "cds": {
     "requires": {
@@ -42,6 +43,8 @@
     }
   },
   "sapux": [
-    "app/addingaccountingdetails"
+    "app/addingaccountingdetails",
+    "app/gst",
+    "app/gst"
   ]
 }

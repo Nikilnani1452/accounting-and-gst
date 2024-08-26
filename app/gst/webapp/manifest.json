@@ -1,7 +1,7 @@
 {
   "_version": "1.59.0",
   "sap.app": {
-    "id": "com.satinfotech.cloudapps.addingaccountingdetails",
+    "id": "com.satinfotech.cloudapps.gst",
     "type": "application",
     "i18n": "i18n/i18n.properties",
     "applicationVersion": {
@@ -13,7 +13,7 @@
     "sourceTemplate": {
       "id": "@sap/generator-fiori:lrop",
       "version": "1.14.2",
-      "toolsId": "1089aa31-029c-4a67-8842-7c3526ced709"
+      "toolsId": "f18a91ef-3e5d-43d7-acd2-927bf28538c0"
     },
     "dataSources": {
       "mainService": {
@@ -61,7 +61,7 @@
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
-          "bundleName": "com.satinfotech.cloudapps.addingaccountingdetails.i18n.i18n"
+          "bundleName": "com.satinfotech.cloudapps.gst.i18n.i18n"
         }
       },
       "": {
@@ -93,6 +93,11 @@
           "pattern": "Accounting({key}):?query:",
           "name": "AccountingObjectPage",
           "target": "AccountingObjectPage"
+        },
+        {
+          "pattern": "Accounting({key})/Items({key2}):?query:",
+          "name": "ItemsObjectPage",
+          "target": "ItemsObjectPage"
         }
       ],
       "targets": {
@@ -117,8 +122,8 @@
                     "type": "ResponsiveTable"
                   },
                   "actions": {
-                    "addingaccountingdetails": {
-                      "press": "com.satinfotech.cloudapps.addingaccountingdetails.ext.addingaccountingdetails.addingaccountingdetails.addingaccountingdetails",
+                    "gst": {
+                      "press": "com.satinfotech.cloudapps.gst.ext.gst.gst.gst",
                       "visible": true,
                       "enabled": true,
                       "requiresSelection": false,
@@ -137,7 +142,25 @@
           "options": {
             "settings": {
               "editableHeaderContent": false,
-              "contextPath": "/Accounting"
+              "contextPath": "/Accounting",
+              "navigation": {
+                "Items": {
+                  "detail": {
+                    "route": "ItemsObjectPage"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ItemsObjectPage": {
+          "type": "Component",
+          "id": "ItemsObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "editableHeaderContent": false,
+              "contextPath": "/Accounting/Items"
             }
           }
         }

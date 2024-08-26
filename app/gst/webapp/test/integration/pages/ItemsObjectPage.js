@@ -8,9 +8,9 @@ sap.ui.define(['sap/fe/test/ObjectPage'], function(ObjectPage) {
 
     return new ObjectPage(
         {
-            appId: 'com.satinfotech.cloudapps.addingaccountingdetails',
-            componentId: 'AccountingObjectPage',
-            contextPath: '/Accounting'
+            appId: 'com.satinfotech.cloudapps.gst',
+            componentId: 'ItemsObjectPage',
+            contextPath: '/Accounting/Items'
         },
         CustomPageDefinitions
     );

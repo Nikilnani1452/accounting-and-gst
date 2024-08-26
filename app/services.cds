@@ -1,2 +1,2 @@
 
-using from './addingaccountingdetails/annotations';
+using from './gst/annotations';

@@ -8,7 +8,7 @@ sap.ui.define(['sap/fe/test/ListReport'], function(ListReport) {
 
     return new ListReport(
         {
-            appId: 'com.satinfotech.cloudapps.addingaccountingdetails',
+            appId: 'com.satinfotech.cloudapps.gst',
             componentId: 'AccountingList',
             contextPath: '/Accounting'
         },
